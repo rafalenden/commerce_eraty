@@ -1,0 +1,419 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_eraty_menu() {
+  $items['commerce_eraty/response'] = array(
+    'title' => 'Verify transaction',
+    'page callback' => 'commerce_eraty_handle_response',
+    'access arguments' => array('access checkout'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_commerce_payment_method_info().
+ */
+function commerce_eraty_commerce_payment_method_info() {
+  $payment_methods['eraty'] = array(
+    'base' => 'commerce_eraty',
+    'short_title' => t('eRaty'),
+    'title' => t('eRaty'),
+    'description' => t('Pay for an order by hire purchase.'),
+    'terminal' => FALSE,
+    'offsite' => TRUE,
+  );
+  return $payment_methods;
+}
+
+/**
+ * Implements hook_settings_form().
+ */
+function commerce_eraty_settings_form($settings = NULL) {
+  $form = array();
+
+  // Merge default settings into the stored settings array.
+  $settings = (array) $settings + commerce_eraty_get_default_settings();
+
+  $form['shop_number'] = array(
+    '#title' => t('Shop number'),
+    '#description' => t('For testing use @number', array('@number' => '13010005')),
+    '#type' => 'textfield',
+    '#default_value' => $settings['shop_number'],
+    '#required' => TRUE,
+  );
+  $form['shop_variant'] = array(
+    '#title' => t('Shop variant'),
+    '#description' => t('For testing use @number', array('@number' => '1')),
+    '#type' => 'textfield',
+    '#default_value' => $settings['shop_variant'],
+    '#required' => TRUE,
+  );
+
+  return $form;
+}
+
+/**
+ * Payment method callback: submit form.
+ */
+function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
+  $settings = commerce_eraty_get_settings($payment_method);
+
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $order_total = $wrapper->commerce_order_total->amount->value() / 100;
+
+  $form['calculate'] = array(
+    '#weight' => 99,
+    '#theme' => 'commerce_eraty_calculate_button',
+    '#shop_number' => $settings['shop_number'],
+    '#shop_variant' => $settings['shop_variant'],
+    '#total_cost' => $order_total,
+  );
+
+  $form['agree'] = array(
+    '#title' => 'Zapoznałem się z <a href="https://www.scfinanse.pl/raty-jak-kupic" target="_blank">procedurą udzielenia kredytu konsumenckiego na zakup towarów i usług eRaty SantanderConsumer Finanse</a>',
+    '#type' => 'checkbox',
+    '#required' => TRUE,
+  );
+
+  return $form;
+}
+
+/**
+ * Payment method callback: submit form validation.
+ */
+function commerce_eraty_submit_form_validate($payment_method, $pane_form, $pane_values, $order, $form_parents = array()) {
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $amount = $wrapper->commerce_order_total->amount->value();
+
+  if (empty($payment_method['settings']['shop_number']) || empty($payment_method['settings']['shop_variant'])) {
+    drupal_set_message(t('eRaty service is not configured for use.'), 'error');
+    return FALSE;
+  }
+  elseif (($amount / 100) < 100) {
+    drupal_set_message(t('You can purchase on eRaty instalments only if the total cost of your purchase is equal or greater than @amount.', array('@amount' => '100PLN')), 'error');
+    return FALSE;
+  }
+}
+
+/**
+ * Payment method callback: redirect form.
+ */
+function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_method) {
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $amount = $wrapper->commerce_order_total->amount->value();
+  // $products_count = commerce_line_items_quantity($wrapper->commerce_line_items, commerce_product_line_item_types())
+
+  $i = 1;
+  $products = array();
+  $product_counter = 0;
+
+  foreach ($wrapper->commerce_line_items as $delta => $line_item_wrapper) {
+    $line_item = $line_item_wrapper->value();
+    $product = commerce_product_load($line_item->line_item_id);
+
+    $products['idTowaru' . $i] = $line_item->line_item_id;
+    $products['nazwaTowaru' . $i] = $line_item->line_item_label;
+
+    if ($line_item->type == 'shipping') {
+      $shipping_method = $line_item->line_item_label;
+    }
+    elseif ($line_item->type == 'product') {
+      $products['nazwaTowaru' . $i] = $product->title . ' (' . $line_item->line_item_label . ')';
+    }
+
+    $products['wartoscTowaru' . $i] = $line_item->commerce_total['und'][0]['amount'] / 100;
+    $products['liczbaSztukTowaru' . $i] = $line_item->quantity;
+    $products['jednostkaTowaru' . $i] = 'szt.';
+
+    if ($line_item->type == 'shipping') {
+      $shipping_method = $line_item->line_item_label;
+    }
+
+    $product_counter += $line_item->quantity;
+
+    $i++;
+  }
+
+  $url_success = url('commerce_eraty/response/' . $order->order_id . '/success/' . $order->data['payment_redirect_key'], array('absolute' => TRUE, 'query' => array('order_id' => '')));
+  $url_cancel = url('checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'], array('absolute' => TRUE, 'query' => array('order_id' => '')));
+
+  $data = $products + array(
+    // Shop and order
+    'wartoscTowarow' => $amount / 100,
+    'liczbaSztukTowarow' => $product_counter,
+    'numerSklepu' => $payment_method['settings']['shop_number'],
+    'typProduktu' => 0,
+    'wariantSklepu' => $payment_method['settings']['shop_variant'],
+    'sposobDostarczeniaTowaru' => $shipping_method,
+    'nrZamowieniaSklep' => $order->order_id,
+    // Client
+    'pesel' => '',
+    'imie' => '',
+    'nazwisko' => '',
+    'email' => $order->mail,
+    'telKontakt' => '',
+    'ulica' => '',
+    'nrDomu' => '',
+    'nrMieszkania' => '',
+    'miasto' => '',
+    'kodPocz' => '',
+    // Other
+    'char' => 'UTF',
+    // Callback
+    // At the end of both urls is adding order id
+    // [nr_zamowienia]&id_wniosku=[nr_wniosku]
+    'wniosekZapisany' => $url_success,
+    'wniosekAnulowany' => $url_cancel,
+  );
+
+  $address = $wrapper->commerce_customer_billing->commerce_customer_address;
+
+  $params_map = array(
+    'imie' => 'first_name',
+    'nazwisko' => 'last_name',
+    'ulica' => 'thoroughfare',
+    'miasto' => 'locality',
+    'kodPocz' => 'postal_code',
+  );
+
+  foreach ($params_map as $key => $field) {
+    if (isset($address->$field)) {
+      $data[$key] = $address->$field->value();
+    }
+  }
+
+  if (isset($address->name_line)) {
+    $name_line = $address->name_line->value();
+    if (!empty($name_line)) {
+      $name_line = explode(' ', $name_line);
+      if (!empty($name_line[0])) {
+        $data['imie'] = trim($name_line[0]);
+      }
+      if (!empty($name_line[1])) {
+        $data['nazwisko'] = trim($name_line[1]);
+        if (!empty($name_line[2])) {
+          $data['nazwisko'] .= ' ' . trim($name_line[2]);
+        }
+      }
+    }
+  }
+
+  $form['#action'] = 'https://wniosek.eraty.pl/formularz/';
+
+  // Create hidden fields from $data array
+  foreach ($data as $name => $value) {
+    if (!empty($value)) {
+      $form[$name] = array('#type' => 'hidden', '#value' => $value);
+    }
+  }
+
+  // After clicking this button customer is redirected to form action URL
+  $form['submit'] = array(
+    '#type' => 'image_button',
+    '#button_type' => 'image_button',
+    '#src' => 'https://www.eraty.pl/images/bannery/zlozwniosek_white.png',
+//    '#value' => t('Apply for a loan installment'),
+  );
+
+  return $form;
+}
+
+function commerce_eraty_handle_response() {
+  $order_id = arg(2);
+  $response_status = arg(3);
+  $payment_redirect_key = arg(4);
+  $order = commerce_order_load($order_id);
+
+  if (empty($order)) {
+    drupal_set_message(t('Wrong order ID in URL.'), 'error');
+    watchdog('commerce_eraty', 'Wrong order ID in URL.');
+    drupal_goto('<front>');
+  }
+  elseif ($payment_redirect_key != $order->data['payment_redirect_key']) {
+    drupal_set_message(t('Payment redirect key is wrong.'), 'error');
+    watchdog('commerce_eraty', 'Payment redirect key is wrong.');
+    drupal_goto(commerce_checkout_order_uri($order));
+  }
+
+//  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $payment_method_instance_id = $order->data['payment_method'];
+  $payment_method = commerce_payment_method_instance_load($payment_method_instance_id);
+
+  $application_number = isset($_GET['id_wniosku']) ? check_plain($_GET['id_wniosku']) : 0;
+
+  $transaction = commerce_payment_transaction_new('eraty', $order_id);
+  $transaction->instance_id = $payment_method['instance_id'];
+  $transaction->amount = 0;
+  $transaction->currency_code = 'PL';
+
+  if ($response_status == 'success') {
+    if (!empty($application_number)) {
+      $transaction->message = t('The buyer sent a request for an installment loan. Application number: @number', array('@number' => $application_number));
+      $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+      $transaction->remote_id = $application_number;
+    }
+    else {
+      drupal_set_message(t('Application number is incorrect.'), 'error');
+      watchdog('commerce_eraty', 'Application number is incorrect.');
+      drupal_goto(commerce_checkout_order_uri($order));
+    }
+  }
+  elseif ($response_status == 'cancel') {
+    drupal_set_message(t('You canceled application for a loan installment.'), 'error');
+    $transaction->status = COMMERCE_PAYMENT_STATUS_CANCELED;
+  }
+
+//  $transaction->remote_status = $transaction->status;
+  commerce_payment_transaction_save($transaction);
+  commerce_payment_redirect_pane_next_page($order);
+  drupal_goto(commerce_checkout_order_uri($order));
+}
+
+/**
+ * Implementation of hook_form_FORMID_alter().
+ */
+function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
+  global $user;
+
+  $settings = commerce_eraty_get_settings();
+  $order = commerce_cart_order_load($user->uid);
+  $order_total = $order->commerce_order_total[LANGUAGE_NONE][0]['amount'] / 100;
+
+  $form['calculate'] = array(
+    '#weight' => 99,
+    '#theme' => 'commerce_eraty_calculate_button',
+    '#shop_number' => $settings['shop_number'],
+    '#shop_variant' => $settings['shop_variant'],
+    '#total_cost' => $order_total,
+  );
+}
+
+/**
+ * Implementation of hook_form_FORMID_alter().
+ */
+function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
+  $settings = commerce_eraty_get_settings();
+
+  $line_item = $form_state['line_item'];
+  $product = commerce_product_load($line_item->commerce_product[LANGUAGE_NONE][0]['product_id']);
+  $product_price = $product->commerce_price[LANGUAGE_NONE][0]['amount'] / 100;
+
+  $form['calculate'] = array(
+    '#weight' => 99,
+    '#theme' => 'commerce_eraty_calculate_button',
+    '#shop_number' => $settings['shop_number'],
+    '#shop_variant' => $settings['shop_variant'],
+    '#total_cost' => $product_price,
+  );
+}
+
+function commerce_eraty_get_settings($payment_method = NULL) {
+  $default_settings = commerce_eraty_get_default_settings();
+  if (empty($payment_method)) {
+    $payment_method = commerce_payment_method_instance_load('eraty|commerce_payment_eraty');
+  }
+  return array(
+    'shop_number' => !empty($payment_method['settings']['shop_number']) ? $payment_method['settings']['shop_number'] : $default_settings['shop_number'],
+    'shop_variant' => !empty($payment_method['settings']['shop_variant']) ? $payment_method['settings']['shop_variant'] : $default_settings['shop_variant'],
+    'product_type' => 0,
+  );
+}
+
+/**
+ * Returns the default settings.
+ */
+function commerce_eraty_get_default_settings() {
+  return array(
+    'shop_number' => 13010005, // For test use 13010005 (28011111/28019999 before)
+    'shop_variant' => 1,
+    'product_type' => 0,
+  );
+}
+
+/**
+ * Implements hook_theme().
+ */
+function commerce_eraty_theme() {
+  return array(
+    'commerce_eraty_calculate_button' => array(
+      'variables' => array(
+        'shop_number' => NULL,
+        'shop_variant' => NULL,
+        'total_cost' => NULL,
+      ),
+    ),
+    'commerce_eraty_how_to_buy_button' => array(),
+  );
+}
+
+/**
+ * Themes a calculate eRaty button
+ *
+ * @param $variables
+ *   Includes the 'shop_number', 'shop_variant' and products 'total_cost' variables.
+ */
+function theme_commerce_eraty_calculate_button($variables) {
+  drupal_add_library('system', 'ui.dialog');
+  $path = drupal_get_path('module', 'commerce_eraty');
+  drupal_add_js($path . '/js/commerce_eraty.js');
+  drupal_add_css($path . '/css/commerce_eraty.css');
+
+  if ($variables['total_cost'] < 100) {
+    return;
+  }
+
+  $button = array(
+    'path' => 'https://www.eraty.pl/images/bannery/oblicz_white.png',
+    'alt' => t('Calculate the amount of installment loan'),
+    'title' => t('Calculate the amount of installment loan'),
+  );
+  $link = l(theme('image', $button), 'https://wniosek.eraty.pl/symulator/oblicz/numerSklepu/' . $variables['shop_number'] . '/wariantSklepu/' . $variables['shop_variant'] . '/typProduktu/0/wartoscTowarow/' . $variables['total_cost'], array('html' => TRUE));
+  $wrapper = '<div class="form-actions commerce-eraty-button commerce-eraty-calculate-button">' . $link . '</div>';
+  return $wrapper;
+}
+
+/**
+ * Themes a eRaty how to buy button
+ *
+ */
+function theme_commerce_eraty_how_to_buy_button() {
+  drupal_add_js($path . '/js/commerce_eraty.js');
+  $button = array(
+    'path' => 'https://www.eraty.pl/images/bannery/jakkupic_white.png',
+    'alt' => t('How to buy with eRaty?'),
+    'title' => t('How to buy with eRaty?'),
+  );
+  $link = l(theme('image', $button), 'https://www.scfinanse.pl/raty-jak-kupic', array('html' => TRUE));
+  $wrapper = '<div class="commerce-eraty-button commerce-eraty-how-to-buy-button">' . $link . '</div>';
+  return $wrapper;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function commerce_eraty_block_info() {
+  $blocks['how_to_buy'] = array(
+    'info' => t('How to buy with eRaty?'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function commerce_eraty_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'how_to_buy':
+      $block['subject'] = t('How to buy with eRaty?');
+      $block['content'] = array(
+        '#theme' => 'commerce_eraty_how_to_buy_button',
+      );
+      break;
+  }
+  return $block;
+}

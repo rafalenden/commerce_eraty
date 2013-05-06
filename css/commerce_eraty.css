@@ -1,0 +1,9 @@
+.commerce-line-item-views-form .commerce-eraty-calculate-button {
+  float: left;
+}
+.commerce-eraty-popup {
+  background: url(../images/status-active.gif) 50% no-repeat !important;
+}
+.commerce-eraty-popup iframe {
+  background: none !important;
+}
