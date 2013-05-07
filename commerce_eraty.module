@@ -83,7 +83,6 @@ function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pan
   $form['agree'] = array(
     '#title' => t('I have read <a href="@url">the procedure of the loan for the purchase of consumer goods and services eRaty SantanderConsumer Finance</a>.', array(
       '@url' => 'https://www.scfinanse.pl/raty-jak-kupic')),
-    //'#title' => 'Zapoznałem się z <a href="https://www.scfinanse.pl/raty-jak-kupic" target="_blank">procedurą udzielenia kredytu konsumenckiego na zakup towarów i usług eRaty SantanderConsumer Finanse</a>',
     '#type' => 'checkbox',
     '#attributes' => array(
       'class' => array(
@@ -228,7 +227,6 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
     '#type' => 'image_button',
     '#button_type' => 'image_button',
     '#src' => 'https://www.eraty.pl/images/bannery/zlozwniosek_white.png',
-   //'#value' => t('Apply for a loan installment'),
   );
 
   return $form;
