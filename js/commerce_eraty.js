@@ -6,7 +6,7 @@
         Drupal.theme('commerce_eraty_popup', $(this).find('img').attr('title'), $(this).attr('href'));
         return false;
       });
-      
+
       $('.commerce-eraty-how-to-buy-button a, .commerce-eraty-rules + label a', context).attr('target', '_blank');
     }
   };
