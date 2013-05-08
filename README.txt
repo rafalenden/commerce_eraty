@@ -1,6 +1,6 @@
 1. Unpack and move directory "commerce_eraty" to your modules directory.
 2. Enable it in the modules list of your site.
-4. Move block "How to buy with eRaty?" in any region.
+4. Move block "How to buy with eRaty?" in region of your choice.
 5. Enable eRaty payment method at "admin/commerce/config/payment-methods".
 
 Module adds:
