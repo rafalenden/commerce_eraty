@@ -233,7 +233,7 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 }
 
 /**
- * Handle response (by URL query) fron eRaty website.
+ * Handle response (by URL query) from eRaty website.
  */
 function commerce_eraty_handle_response() {
   $order_id = arg(2);
