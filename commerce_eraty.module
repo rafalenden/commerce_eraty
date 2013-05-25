@@ -13,6 +13,7 @@ function commerce_eraty_menu() {
     'title' => 'Verify transaction',
     'page callback' => 'commerce_eraty_handle_response',
     'access arguments' => array('access checkout'),
+    'file' => 'commerce_eraty.pages.inc',
     'type' => MENU_CALLBACK,
   );
   return $items;
@@ -34,7 +35,7 @@ function commerce_eraty_commerce_payment_method_info() {
 }
 
 /**
- * Implements hook_settings_form().
+ * Implements CALLBACK_commerce_payment_method_settings_form().
  */
 function commerce_eraty_settings_form($settings = NULL) {
   $form = array();
@@ -61,7 +62,7 @@ function commerce_eraty_settings_form($settings = NULL) {
 }
 
 /**
- * Payment method callback: submit form.
+ * Implements CALLBACK_commerce_payment_method_submit_form().
  */
 function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
   $path = drupal_get_path('module', 'commerce_eraty');
@@ -85,7 +86,7 @@ function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pan
       '@url' => 'https://www.scfinanse.pl/raty-jak-kupic')),
     '#type' => 'checkbox',
     '#attributes' => array(
-      'class' => array(
+      'id' => array(
         'commerce-eraty-rules',
       ),
     ),
@@ -96,7 +97,7 @@ function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pan
 }
 
 /**
- * Payment method callback: submit form validation.
+ * Implements CALLBACK_commerce_payment_method_submit_form_validate().
  */
 function commerce_eraty_submit_form_validate($payment_method, $pane_form, $pane_values, $order, $form_parents = array()) {
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
@@ -113,7 +114,7 @@ function commerce_eraty_submit_form_validate($payment_method, $pane_form, $pane_
 }
 
 /**
- * Payment method callback: redirect form.
+ * Implements CALLBACK_commerce_payment_method_redirect_form().
  */
 function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_method) {
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
@@ -233,58 +234,6 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 }
 
 /**
- * Handle response (by URL query) from eRaty website.
- */
-function commerce_eraty_handle_response() {
-  $order_id = arg(2);
-  $response_status = arg(3);
-  $payment_redirect_key = arg(4);
-  $order = commerce_order_load($order_id);
-
-  if (empty($order)) {
-    drupal_set_message(t('Wrong order ID in URL.'), 'error');
-    watchdog('commerce_eraty', 'Wrong order ID in URL.');
-    drupal_goto('<front>');
-  }
-  elseif ($payment_redirect_key != $order->data['payment_redirect_key']) {
-    drupal_set_message(t('Payment redirect key is wrong.'), 'error');
-    watchdog('commerce_eraty', 'Payment redirect key is wrong.');
-    drupal_goto(commerce_checkout_order_uri($order));
-  }
-
-  $payment_method_instance_id = $order->data['payment_method'];
-  $payment_method = commerce_payment_method_instance_load($payment_method_instance_id);
-
-  $application_number = isset($_GET['id_wniosku']) ? check_plain($_GET['id_wniosku']) : 0;
-
-  $transaction = commerce_payment_transaction_new('eraty', $order_id);
-  $transaction->instance_id = $payment_method['instance_id'];
-  $transaction->amount = 0;
-  $transaction->currency_code = 'PL';
-
-  if ($response_status == 'success') {
-    if (!empty($application_number)) {
-      $transaction->message = t('The buyer sent a request for an installment loan. Application number: @number', array('@number' => $application_number));
-      $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
-      $transaction->remote_id = $application_number;
-    }
-    else {
-      drupal_set_message(t('Application number is incorrect.'), 'error');
-      watchdog('commerce_eraty', 'Application number is incorrect.');
-      drupal_goto(commerce_checkout_order_uri($order));
-    }
-  }
-  elseif ($response_status == 'cancel') {
-    drupal_set_message(t('You canceled application for a loan installment.'), 'error');
-    $transaction->status = COMMERCE_PAYMENT_STATUS_CANCELED;
-  }
-
-  commerce_payment_transaction_save($transaction);
-  commerce_payment_redirect_pane_next_page($order);
-  drupal_goto(commerce_checkout_order_uri($order));
-}
-
-/**
  * Implements hook_form_FORMID_alter().
  */
 function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
@@ -388,7 +337,7 @@ function theme_commerce_eraty_calculate_button($variables) {
   );
   $url = 'https://wniosek.eraty.pl/symulator/oblicz/numerSklepu/' . $variables['shop_number'] . '/wariantSklepu/' . $variables['shop_variant'] . '/typProduktu/0/wartoscTowarow/' . $variables['total_cost'];
   $link = l(theme('image', $button), $url, array('html' => TRUE));
-  $wrapper = '<div class="form-actions commerce-eraty-button commerce-eraty-calculate-button">' . $link . '</div>';
+  $wrapper = '<div id="commerce-eraty-calculate-button" class="form-actions commerce-eraty-button">' . $link . '</div>';
   return $wrapper;
 }
 
@@ -404,8 +353,7 @@ function theme_commerce_eraty_how_to_buy_button() {
     'title' => t('How to buy with eRaty?'),
   );
   $link = l(theme('image', $button), 'https://www.scfinanse.pl/raty-jak-kupic', array('html' => TRUE));
-  $wrapper = '<div class="commerce-eraty-button commerce-eraty-how-to-buy-button">' . $link . '</div>';
-  return $wrapper;
+  return '<div id="commerce-eraty-how-to-buy-button" class="commerce-eraty-button">' . $link . '</div>';
 }
 
 /**
