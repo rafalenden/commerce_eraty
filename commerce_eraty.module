@@ -45,14 +45,14 @@ function commerce_eraty_settings_form($settings = NULL) {
 
   $form['shop_number'] = array(
     '#title' => t('Shop number'),
-    '#description' => t('For testing use @number', array('@number' => '13010005')),
+    '#description' => t('For testing use @shop-number.', array('@shop-number' => '13010005')),
     '#type' => 'textfield',
     '#default_value' => $settings['shop_number'],
     '#required' => TRUE,
   );
   $form['shop_variant'] = array(
     '#title' => t('Shop variant'),
-    '#description' => t('For testing use @number', array('@number' => '1')),
+    '#description' => t('For testing use @shop-variant.', array('@shop-variant' => '1')),
     '#type' => 'textfield',
     '#default_value' => $settings['shop_variant'],
     '#required' => TRUE,
@@ -272,7 +272,7 @@ function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form
 }
 
 /**
- * Payment method settings.
+ * Get payment method settings.
  */
 function commerce_eraty_get_settings($payment_method = NULL) {
   $default_settings = commerce_eraty_get_default_settings();
