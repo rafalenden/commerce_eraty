@@ -7,3 +7,7 @@
 #commerce-eraty-popup iframe {
   background: none !important;
 }
+
+#block-commerce-eraty-how-to-buy {
+  max-width: 100%;
+}

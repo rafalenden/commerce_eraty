@@ -2,11 +2,11 @@
 
   Drupal.behaviors.commerce_eraty = {
     attach: function(context, settings) {
-      var button = $('#commerce-eraty-calculate-button a', context).unbind('click').bind('click', function() {
+      var $button = $('#commerce-eraty-calculate-button a', context).unbind('click').bind('click', function() {
         Drupal.theme(
           'commerce_eraty_popup',
-          button.find('img').attr('title'),
-          button.attr('href')
+          $button.find('img').attr('title'),
+          $button.attr('href')
         );
 
         return false;

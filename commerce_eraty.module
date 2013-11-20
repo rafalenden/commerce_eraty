@@ -25,8 +25,8 @@ function commerce_eraty_menu() {
 function commerce_eraty_commerce_payment_method_info() {
   $payment_methods['eraty'] = array(
     'base' => 'commerce_eraty',
-    'short_title' => t('eRaty'),
-    'title' => t('eRaty'),
+    'short_title' => t('Santander eRaty'),
+    'title' => t('Santander eRaty'),
     'description' => t('Pay for an order by hire purchase.'),
     'terminal' => FALSE,
     'offsite' => TRUE,
@@ -235,39 +235,43 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 
 /**
  * Implements hook_form_FORMID_alter().
+ * Entire order.
  */
 function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
   global $user;
 
   $settings = commerce_eraty_get_settings();
+
   $order = commerce_cart_order_load($user->uid);
-  $order_total = $order->commerce_order_total[LANGUAGE_NONE][0]['amount'] / 100;
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $order_total  = $order_wrapper->commerce_order_total->value();
+  $order_total_converted = commerce_currency_amount_to_decimal($order_total['amount'], $order_total['currency_code']);
 
   $form['calculate'] = array(
     '#weight' => 99,
     '#theme' => 'commerce_eraty_calculate_button',
     '#shop_number' => $settings['shop_number'],
     '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $order_total,
+    '#total_cost' => $order_total_converted,
   );
 }
 
 /**
  * Implements hook_form_FORMID_alter().
+ * Single product.
  */
 function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
   $settings = commerce_eraty_get_settings();
 
-  $line_item = $form_state['line_item'];
-  $product = commerce_product_load($line_item->commerce_product[LANGUAGE_NONE][0]['product_id']);
-  $product_price = $product->commerce_price[LANGUAGE_NONE][0]['amount'] / 100;
+  $price = commerce_product_calculate_sell_price($form_state['default_product']);
+  $price_converted = commerce_currency_amount_to_decimal($price['amount'], $price['currency_code']);
 
   $form['calculate'] = array(
     '#weight' => 99,
     '#theme' => 'commerce_eraty_calculate_button',
     '#shop_number' => $settings['shop_number'],
     '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $product_price,
+    '#total_cost' => $price_converted,
   );
 }
 
@@ -375,9 +379,7 @@ function commerce_eraty_block_view($delta = '') {
   switch ($delta) {
     case 'how_to_buy':
       $block['subject'] = t('How to buy with eRaty?');
-      $block['content'] = array(
-        '#theme' => 'commerce_eraty_how_to_buy_button',
-      );
+      $block['content'] = theme('commerce_eraty_how_to_buy_button');
       break;
   }
   return $block;
