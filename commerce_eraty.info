@@ -1,4 +1,4 @@
-name = Commerce eRaty
+name = Commerce Santander eRaty
 description = Implements eRaty hire purchase payments in Drupal Commerce checkout.
 package = Commerce (contrib)
 core = 7.x

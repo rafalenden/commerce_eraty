@@ -245,14 +245,15 @@ function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form,
   $order = commerce_cart_order_load($user->uid);
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
   $order_total  = $order_wrapper->commerce_order_total->value();
-  $order_total_converted = commerce_currency_amount_to_decimal($order_total['amount'], $order_total['currency_code']);
+  $order_total_converted = commerce_currency_convert($order_total['amount'], $order_total['currency_code'], 'PLN');
+  $order_total_prepared = commerce_currency_amount_to_decimal($order_total_converted, 'PLN');
 
   $form['calculate'] = array(
     '#weight' => 99,
     '#theme' => 'commerce_eraty_calculate_button',
     '#shop_number' => $settings['shop_number'],
     '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $order_total_converted,
+    '#total_cost' => $order_total_prepared,
   );
 }
 
@@ -264,14 +265,15 @@ function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form
   $settings = commerce_eraty_get_settings();
 
   $price = commerce_product_calculate_sell_price($form_state['default_product']);
-  $price_converted = commerce_currency_amount_to_decimal($price['amount'], $price['currency_code']);
+  $price_converted = commerce_currency_convert($price['amount'], $price['currency_code'], 'PLN');
+  $price_prepared = commerce_currency_amount_to_decimal($price_converted, 'PLN');
 
   $form['calculate'] = array(
     '#weight' => 99,
     '#theme' => 'commerce_eraty_calculate_button',
     '#shop_number' => $settings['shop_number'],
     '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $price_converted,
+    '#total_cost' => $price_prepared,
   );
 }
 
