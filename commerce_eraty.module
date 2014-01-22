@@ -23,13 +23,12 @@ function commerce_eraty_menu() {
  * Implements hook_commerce_payment_method_info().
  */
 function commerce_eraty_commerce_payment_method_info() {
-  $payment_methods['eraty'] = array(
-    'base' => 'commerce_eraty',
-    'short_title' => t('Santander eRaty'),
+  $payment_methods['commerce_eraty'] = array(
     'title' => t('Santander eRaty'),
     'description' => t('Pay for an order by hire purchase.'),
     'terminal' => FALSE,
     'offsite' => TRUE,
+    'active' => TRUE,
   );
   return $payment_methods;
 }
@@ -137,7 +136,7 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
       $products['nazwaTowaru' . $i] = $product->title . ' (' . $line_item->line_item_label . ')';
     }
 
-    $products['wartoscTowaru' . $i] = $line_item->commerce_total['und'][0]['amount'] / 100;
+    $products['wartoscTowaru' . $i] = $line_item->commerce_total[LANGUAGE_NONE][0]['amount'] / 100;
     $products['liczbaSztukTowaru' . $i] = $line_item->quantity;
     $products['jednostkaTowaru' . $i] = 'szt.';
 
@@ -235,7 +234,8 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 
 /**
  * Implements hook_form_FORMID_alter().
- * Entire order.
+ *
+ * Processing entire order.
  */
 function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
   global $user;
@@ -259,7 +259,8 @@ function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form,
 
 /**
  * Implements hook_form_FORMID_alter().
- * Single product.
+ *
+ * Processing single product.
  */
 function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
   $settings = commerce_eraty_get_settings();
