@@ -72,13 +72,7 @@ function commerce_eraty_submit_form($payment_method, $pane_values, $checkout_pan
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
   $order_total = $wrapper->commerce_order_total->amount->value() / 100;
 
-  $form['calculate'] = array(
-    '#weight' => 99,
-    '#theme' => 'commerce_eraty_calculate_button',
-    '#shop_number' => $settings['shop_number'],
-    '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $order_total,
-  );
+  $form['calculate'] = commerce_eraty_calulate_button_element($order_total);
 
   $form['agree'] = array(
     '#title' => t('I have read <a href="@url">the procedure of the loan for the purchase of consumer goods and services eRaty SantanderConsumer Finance</a>.', array(
@@ -240,21 +234,14 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
   global $user;
 
-  $settings = commerce_eraty_get_settings();
-
   $order = commerce_cart_order_load($user->uid);
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
   $order_total  = $order_wrapper->commerce_order_total->value();
-  $order_total_converted = commerce_currency_convert($order_total['amount'], $order_total['currency_code'], 'PLN');
-  $order_total_prepared = commerce_currency_amount_to_decimal($order_total_converted, 'PLN');
 
-  $form['calculate'] = array(
-    '#weight' => 99,
-    '#theme' => 'commerce_eraty_calculate_button',
-    '#shop_number' => $settings['shop_number'],
-    '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $order_total_prepared,
-  );
+  if ($order_total['currency_code'] == 'PLN') {
+    $order_total_decimal = commerce_currency_amount_to_decimal($order_total['amount'], 'PLN');
+    $form['calculate'] = commerce_eraty_calulate_button_element($order_total_decimal);
+  }
 }
 
 /**
@@ -263,19 +250,12 @@ function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form,
  * Processing single product.
  */
 function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
-  $settings = commerce_eraty_get_settings();
-
   $price = commerce_product_calculate_sell_price($form_state['default_product']);
-  $price_converted = commerce_currency_convert($price['amount'], $price['currency_code'], 'PLN');
-  $price_prepared = commerce_currency_amount_to_decimal($price_converted, 'PLN');
 
-  $form['calculate'] = array(
-    '#weight' => 99,
-    '#theme' => 'commerce_eraty_calculate_button',
-    '#shop_number' => $settings['shop_number'],
-    '#shop_variant' => $settings['shop_variant'],
-    '#total_cost' => $price_prepared,
-  );
+  if ($price['currency_code'] == 'PLN') {
+    $price_decimal = commerce_currency_amount_to_decimal($price_converted, 'PLN');
+    $form['calculate'] = commerce_eraty_calulate_button_element($price_decimal);
+  }
 }
 
 /**
@@ -302,6 +282,18 @@ function commerce_eraty_get_default_settings() {
     'shop_number' => 13010005,
     'shop_variant' => 1,
     'product_type' => 0,
+  );
+}
+
+function commerce_eraty_calulate_button_element($total_cost) {
+  $settings = commerce_eraty_get_settings();
+
+  return array(
+    '#weight' => 99,
+    '#theme' => 'commerce_eraty_calculate_button',
+    '#shop_number' => $settings['shop_number'],
+    '#shop_variant' => $settings['shop_variant'],
+    '#total_cost' => $total_cost,
   );
 }
 
