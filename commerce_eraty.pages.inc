@@ -49,7 +49,7 @@ function commerce_eraty_handle_response() {
   }
   elseif ($response_status == 'cancel') {
     drupal_set_message(t('You canceled application for a loan installment.'), 'error');
-    $transaction->status = COMMERCE_PAYMENT_STATUS_CANCELED;
+    $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
   }
 
   commerce_payment_transaction_save($transaction);
