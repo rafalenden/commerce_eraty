@@ -227,11 +227,11 @@ function commerce_eraty_redirect_form($form, &$form_state, $order, $payment_meth
 }
 
 /**
- * Implements hook_form_FORMID_alter().
+ * Implements hook_form_FORM_ID_alter().
  *
  * Processing entire order.
  */
-function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state) {
+function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form, &$form_state, $form_id) {
   global $user;
 
   $order = commerce_cart_order_load($user->uid);
@@ -239,17 +239,18 @@ function commerce_eraty_form_views_form_commerce_cart_form_default_alter(&$form,
   $order_total  = $order_wrapper->commerce_order_total->value();
 
   if ($order_total['currency_code'] == 'PLN') {
+
     $order_total_decimal = commerce_currency_amount_to_decimal($order_total['amount'], 'PLN');
     $form['calculate'] = commerce_eraty_calulate_button_element($order_total_decimal);
   }
 }
 
 /**
- * Implements hook_form_FORMID_alter().
+ * Implements hook_form_FORM_ID_alter().
  *
  * Processing single product.
  */
-function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
+function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state, $form_id) {
   $price = commerce_product_calculate_sell_price($form_state['default_product']);
 
   if ($price['currency_code'] == 'PLN') {
@@ -301,58 +302,56 @@ function commerce_eraty_calulate_button_element($total_cost) {
  * Implements hook_theme().
  */
 function commerce_eraty_theme() {
+  $templates_path = drupal_get_path('module', 'commerce_eraty') . '/templates';
+
   return array(
     'commerce_eraty_calculate_button' => array(
       'variables' => array(
         'shop_number' => NULL,
         'shop_variant' => NULL,
         'total_cost' => NULL,
+        'link_url' => NULL,
+        'image_src' => 'https://www.eraty.pl/images/bannery/oblicz_white.png',
       ),
+      'path' => $templates_path,
+      'template' => 'commerce-eraty-calculate-button',
     ),
-    'commerce_eraty_how_to_buy_button' => array(),
+    'commerce_eraty_how_to_buy_button' => array(
+      'variables' => array(
+        'link_url' => 'https://www.scfinanse.pl/raty-jak-kupic',
+        'image_src' => 'https://www.eraty.pl/images/bannery/jakkupic_white.png',
+      ),
+      'path' => $templates_path,
+      'template' => 'commerce-eraty-how-to-buy-button',
+    ),
   );
 }
 
 /**
- * Themes a calculate eRaty button.
- *
- * @param array $variables
- *   Includes the 'shop_number', 'shop_variant' and 'total_cost' variables.
+ * Preprocess variables for commerce-eraty-calculate-button.tpl.php template.
  */
-function theme_commerce_eraty_calculate_button($variables) {
-  drupal_add_library('system', 'ui.dialog');
-  $path = drupal_get_path('module', 'commerce_eraty');
-  drupal_add_js($path . '/js/commerce_eraty.js');
-  drupal_add_css($path . '/css/commerce_eraty.css');
-
+function template_preprocess_commerce_eraty_calculate_button(&$variables) {
   if ($variables['total_cost'] < 100) {
     return;
   }
 
-  $button = array(
-    'path' => 'https://www.eraty.pl/images/bannery/oblicz_white.png',
-    'alt' => t('Calculate the amount of installment loan'),
-    'title' => t('Calculate the amount of installment loan'),
-  );
-  $url = 'https://wniosek.eraty.pl/symulator/oblicz/numerSklepu/' . $variables['shop_number'] . '/wariantSklepu/' . $variables['shop_variant'] . '/typProduktu/0/wartoscTowarow/' . $variables['total_cost'];
-  $link = l(theme('image', $button), $url, array('html' => TRUE));
-  $wrapper = '<div id="commerce-eraty-calculate-button" class="form-actions commerce-eraty-button">' . $link . '</div>';
-  return $wrapper;
+  $path = drupal_get_path('module', 'commerce_eraty');
+  drupal_add_library('system', 'ui.dialog');
+  drupal_add_js("$path/js/commerce_eraty.js");
+  drupal_add_css("$path/css/commerce_eraty.css");
+
+  $variables['link_url'] = 'https://wniosek.eraty.pl/symulator/oblicz' .
+    '/numerSklepu/' . $variables['shop_number'] .
+    '/wariantSklepu/' . $variables['shop_variant'] .
+    '/typProduktu/0/wartoscTowarow/' . $variables['total_cost'];
 }
 
 /**
- * Themes a eRaty how to buy button.
+ * Preprocess variables for commerce-eraty-how-to-buy-button.tpl.php template.
  */
-function theme_commerce_eraty_how_to_buy_button() {
+function template_preprocess_commerce_eraty_how_to_buy_button(&$variables) {
   $path = drupal_get_path('module', 'commerce_eraty');
-  drupal_add_js($path . '/js/commerce_eraty.js');
-  $button = array(
-    'path' => 'https://www.eraty.pl/images/bannery/jakkupic_white.png',
-    'alt' => t('How to buy with eRaty?'),
-    'title' => t('How to buy with eRaty?'),
-  );
-  $link = l(theme('image', $button), 'https://www.scfinanse.pl/raty-jak-kupic', array('html' => TRUE));
-  return '<div id="commerce-eraty-how-to-buy-button" class="commerce-eraty-button">' . $link . '</div>';
+  drupal_add_js("$path/js/commerce_eraty.js");
 }
 
 /**
