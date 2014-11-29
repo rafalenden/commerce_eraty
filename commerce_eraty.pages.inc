@@ -27,13 +27,13 @@ function commerce_eraty_handle_response() {
 
   $payment_method_instance_id = $order->data['payment_method'];
   $payment_method = commerce_payment_method_instance_load($payment_method_instance_id);
-
   $application_number = isset($_GET['id_wniosku']) ? check_plain($_GET['id_wniosku']) : 0;
 
   $transaction = commerce_payment_transaction_new('eraty', $order_id);
   $transaction->instance_id = $payment_method['instance_id'];
   $transaction->amount = 0;
   $transaction->currency_code = 'PL';
+  $transaction->remote_status = check_plain(ucfirst($response_status));
 
   if ($response_status == 'success') {
     if (!empty($application_number)) {

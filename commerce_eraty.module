@@ -23,7 +23,8 @@ function commerce_eraty_menu() {
  * Implements hook_commerce_payment_method_info().
  */
 function commerce_eraty_commerce_payment_method_info() {
-  $payment_methods['commerce_eraty'] = array(
+  $payment_methods['eraty'] = array(
+    'base' => 'commerce_eraty',
     'title' => t('Santander eRaty'),
     'description' => t('Pay for an order by hire purchase.'),
     'terminal' => FALSE,
