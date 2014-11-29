@@ -253,7 +253,7 @@ function commerce_eraty_form_commerce_cart_add_to_cart_form_alter(&$form, &$form
   $price = commerce_product_calculate_sell_price($form_state['default_product']);
 
   if ($price['currency_code'] == 'PLN') {
-    $price_decimal = commerce_currency_amount_to_decimal($price_converted, 'PLN');
+    $price_decimal = commerce_currency_amount_to_decimal($price['amount'], 'PLN');
     $form['calculate'] = commerce_eraty_calulate_button_element($price_decimal);
   }
 }
